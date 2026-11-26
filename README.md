@@ -63,7 +63,13 @@ Windows 可直接双击 `run.bat` 或执行 `.\run.ps1 [仓库路径]`，脚本�
 
 ## 打包发布
 
-已提供 **Windows / Linux / macOS 一键构建脚本、PyInstaller spec、打包后冒烟测试和 CI 三平台矩阵**：
+已提供 **Windows 原生 Setup 安装程序、Linux AppImage、macOS .app/DMG**，并保留便携 ZIP 供不需要安装的用户使用：
+
+- Windows：`GitDesk-1.0.0-windows-x64-setup.exe`，支持安装路径、开始菜单/桌面图标和卸载。
+- Linux：`GitDesk-1.0.0-linux-x64.AppImage`，赋予执行权限后双击运行。
+- macOS：`GitDesk-1.0.0-macos.dmg`，打开后将 `GitDesk.app` 拖入应用程序目录。
+
+下载地址：https://github.com/xujc985/gitdesk/releases/tag/v1.0.0
 
 ```powershell
 # Windows（生成本机可独立运行的 exe 与便携 ZIP）
