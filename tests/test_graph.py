@@ -46,6 +46,21 @@ class GraphLayoutTest(unittest.TestCase):
         self.assertGreaterEqual(lanes, 3)
         self.assertEqual(merge.edges[1].to_row, 3)
 
+    def test_merge_preserves_mainline_and_second_parent_color(self):
+        rows, lanes = layout_commits([
+            c("merge", ["main", "side"]), c("side", ["base"]),
+            c("main", ["base"]), c("base", [])])
+        self.assertEqual(lanes, 2)
+        merge, side, main, base = rows
+        self.assertEqual(merge.column, 0)
+        self.assertEqual(side.column, 1)
+        self.assertEqual(main.column, 0)
+        # 共同祖先由最后离开它的分支接管；父子边必须与真实父提交一致，
+        # 不能为了颜色把祖先强行改到另一条分支。
+        self.assertEqual(base.column, side.column)
+        self.assertEqual(merge.edges[0].to_col, main.column)
+        self.assertEqual(merge.edges[1].to_col, side.column)
+
     def test_empty_and_truncated_history(self):
         rows, lanes = layout_commits([])
         self.assertEqual((rows, lanes), ([], 1))

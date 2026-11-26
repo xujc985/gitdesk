@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""彩色历史轨道布局。输入必须为拓扑排序（子提交先于父提交）。"""
+"""真实父提交拓扑的彩色分支轨道布局。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -30,22 +30,18 @@ class GraphRow:
 
 
 def layout_commits(commits: Sequence) -> tuple[list[GraphRow], int]:
-    """按真实父子关系分配轨道。相同分支保持相同列/颜色。
-
-    先处理提交的所有父节点，再释放当前节点轨道，确保合并提交的第一父
-    与第二父不会错误地共用一列。行末之后仍活动的轨道也计入图宽度。
-    """
+    """按真实父子关系分配彩色分支轨道，第二父与主线永不共用。"""
     active: dict[str, tuple[int, int]] = {}
     rows: list[GraphRow] = []
 
     def free_column(used: set[int]) -> int:
-        col = 0
-        while col in used:
-            col += 1
-        return col
+        column = 0
+        while column in used:
+            column += 1
+        return column
 
-    def fresh_color(used: set[int]) -> int:
-        colors = {color for col, color in active.values() if col in used}
+    def free_color(used: set[int]) -> int:
+        colors = {color for _column, color in active.values() if _column in used}
         for index in range(len(PALETTE)):
             if index not in colors:
                 return index
@@ -55,39 +51,51 @@ def layout_commits(commits: Sequence) -> tuple[list[GraphRow], int]:
         if commit.sha in active:
             col, color = active[commit.sha]
         else:
-            used = {c for c, _color in active.values()}
-            col = free_column(used)
-            color = fresh_color(used)
-        # 其他待处理父轨道仍被占用；当前节点不能抢用其中一条。
-        reserved = {column for sha, (column, _color) in active.items()
-                    if sha != commit.sha}
+            used = {column for column, _color in active.values()}
+            col, color = free_column(used), free_color(used)
+        parents = [parent for parent in getattr(commit, "parents", ()) if parent]
+        reserved = {column for column, _color in active.values()}
         edges: list[GraphEdge] = []
-        for index, parent in enumerate(getattr(commit, "parents", ())):
-            if not parent:
-                continue
+        for index, parent in enumerate(parents):
             if parent in active:
-                pcol, pcolor = active[parent]
+                parent_col, parent_color = active[parent]
+                # 父提交轨道一旦分配就固定，不能被另一分支改写。
+                # 合并节点通过不同来源的两条边自然汇流。
+                if index > 0 and parent_col == col:
+                    parent_col = free_column(reserved | {col})
+                    parent_color = free_color(reserved | {col})
+                    active[parent] = (parent_col, parent_color)
+                    reserved.add(parent_col)
+                # 不能把合并双方画成一条直线。
+                if index > 0 and parent_col == col:
+                    parent_col = free_column(reserved | {col})
+                    parent_color = free_color(reserved | {col})
+                    active[parent] = (parent_col, parent_color)
+                    reserved.add(parent_col)
             else:
-                pcol = col if index == 0 else free_column(reserved | {col})
-                pcolor = color if index == 0 else fresh_color(reserved)
-                active[parent] = (pcol, pcolor)
-                reserved.add(pcol)
-            edges.append(GraphEdge(col, pcol, -1, color))
-        # 当前提交已出现，只有未继续指向其他父提交的同 SHA 占位才移除。
+                if index == 0:
+                    parent_col, parent_color = col, color
+                else:
+                    parent_col = free_column(reserved | {col})
+                    parent_color = free_color(reserved | {col})
+                    reserved.add(parent_col)
+                active[parent] = (parent_col, parent_color)
+            edges.append(GraphEdge(col, parent_col, -1, color))
         active.pop(commit.sha, None)
         rows.append(GraphRow(commit.sha, col, color, edges,
-                             merge=len(getattr(commit, "parents", ())) > 1))
+                             merge=len(parents) > 1))
 
     positions = {row.sha: (index, row.column) for index, row in enumerate(rows)}
     for index, row in enumerate(rows):
         row.head = bool(getattr(commits[index], "is_head", False))
-        for j, parent in enumerate(getattr(commits[index], "parents", ())):
-            if j < len(row.edges) and parent in positions:
-                prow, pcol = positions[parent]
-                row.edges[j] = GraphEdge(row.column, pcol, prow,
-                                         row.edges[j].color_index)
-    lanes = [0]
-    for row in rows:
-        lanes.append(row.column)
-        lanes.extend(edge.to_col for edge in row.edges)
-    return rows, max(lanes) + 1
+        for parent_index, parent in enumerate(getattr(commits[index], "parents", ())):
+            if parent_index < len(row.edges) and parent in positions:
+                parent_row, parent_col = positions[parent]
+                row.edges[parent_index] = GraphEdge(
+                    row.column, parent_col, parent_row,
+                    # 边的颜色跟随目标父分支，保证节点与连线一致。
+                    rows[parent_row].color_index)
+    lane_count = max(
+        [row.column for row in rows]
+        + [edge.to_col for row in rows for edge in row.edges] + [0]) + 1
+    return rows, lane_count
