@@ -109,7 +109,8 @@ class TestRepoInitAndStatus(RepoTestCase):
     def test_repo_subdirectory_normalizes_root(self):
         sha = self.commit_file("sub/中文 a.txt", "hello\n", "子目录提交")
         subrepo = gb.Repo(os.path.join(self.repo_path, "sub"))
-        self.assertEqual(os.path.normcase(subrepo.path), os.path.normcase(self.repo_path))
+        self.assertEqual(os.path.normcase(os.path.realpath(subrepo.path)),
+                         os.path.normcase(os.path.realpath(self.repo_path)))
         self.assertIn("hello", subrepo.diff_commit(sha, "sub/中文 a.txt"))
 
     def test_conflict_file_only_in_conflict_group(self):

@@ -1,0 +1,13 @@
+# Git 文本与多平台换行规则。
+* text=auto eol=lf
+
+# Windows 专用二进制图标与文档截图不能转换。
+*.png binary
+*.ico binary
+
+# Windows 批处理使用系统 cmd 兼容换行。
+*.bat text eol=crlf
+
+# Unix 构建/启动脚本必须保持 LF，否则 /bin/sh 无法解释。
+*.sh text eol=lf
+*.command text eol=lf

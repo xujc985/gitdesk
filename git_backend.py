@@ -192,13 +192,13 @@ class Remote:
 
 class Repo:
     def __init__(self, path: str):
-        path = os.path.abspath(path)
+        path = os.path.realpath(os.path.abspath(path))
         self.path = path
-        # 始终从当前输入路径定位仓库根（可位于任意深度子目录）。
-        # 非仓库输入由 is_repo 统一判断，不抛出额外异常。
+        # realpath 统一 macOS /private/var 与 /var、Windows 短路径/长路径，
+        # 便于 UI 比较仓库身份以及测试/外部工具共享路径。
         code, out, _ = run_git(["rev-parse", "--show-toplevel"], path)
         if code == 0 and out.strip():
-            self.path = os.path.abspath(out.strip())
+            self.path = os.path.realpath(os.path.abspath(out.strip()))
 
     # ---- 基础 ----
     @staticmethod

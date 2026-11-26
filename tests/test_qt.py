@@ -163,7 +163,7 @@ class QtIntegrationTest(unittest.TestCase):
         self.wait(condition=lambda: len(self.window.pages[1].commits) == 1)
         self.assertEqual(self.window.pages[1].commits[0].subject, "另一个仓库")
         self.wait(condition=lambda: self.window.branch.currentText() == "main")
-        self.assertEqual(self.window.repo.path, other)
+        self.assertEqual(os.path.realpath(self.window.repo.path), os.path.realpath(other))
 
     def test_failed_commit_keeps_message(self):
         page = self.window.pages[0]
