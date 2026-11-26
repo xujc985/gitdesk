@@ -63,6 +63,8 @@ jobs:
         shell: pwsh
         env:
           GITDESK_SMOKE_LOG: ${{ github.workspace }}/build/package-smoke.json
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: ./packaging/verify-install.ps1
       - name: Upload package
         uses: actions/upload-artifact@v4

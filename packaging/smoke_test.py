@@ -86,7 +86,8 @@ def run() -> int:
             if expected not in content:
                 print(f"启动验证内容缺失 {expected}：{content}", file=sys.stderr)
                 return 1
-        print(f"打包冒烟测试通过：{content.strip()}")
+        safe_content = content.strip().encode("ascii", "backslashreplace").decode("ascii")
+        print(f"Packaged smoke test passed: {safe_content}")
         return 0
 
 
