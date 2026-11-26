@@ -41,4 +41,12 @@ ARCHIVE="$ROOT/release/GitDesk-$VERSION-linux-x64.tar.gz"
 tar -C "$ROOT/dist" -czf "$ARCHIVE" "$(basename "$APPDIR")"
 (cd "$ROOT/release" && sha256sum "$(basename "$ARCHIVE")" > "$(basename "$ARCHIVE").sha256")
 echo "Linux AppDir package: $ARCHIVE"
-echo "如需单文件 AppImage，可另行用 appimagetool 打包该 AppDir；当前流程不下载未验证的第三方工具。"
+# 额外生成单文件可执行 AppImage（需 Linux/AppImage 兼容环境）。
+if command -v appimagetool >/dev/null 2>&1; then
+    appimagetool "$APPDIR" "$ROOT/release/GitDesk-$VERSION-linux-x64.AppImage"
+    chmod +x "$ROOT/release/GitDesk-$VERSION-linux-x64.AppImage"
+    (cd "$ROOT/release" && sha256sum "GitDesk-$VERSION-linux-x64.AppImage" > "GitDesk-$VERSION-linux-x64.AppImage.sha256")
+else
+    echo "安装 appimagetool 后可生成 AppImage："
+    echo "  https://github.com/AppImage/appimagetool/releases"
+fi

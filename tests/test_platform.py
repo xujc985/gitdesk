@@ -41,6 +41,11 @@ class PlatformAssetsTest(unittest.TestCase):
         for name in ("build-windows.ps1", "build-linux.sh", "build-macos.sh"):
             script = (ROOT / "packaging" / name).read_text(encoding="utf-8")
             self.assertIn("smoke_test.py", script)
+        installer = (ROOT / "packaging" / "gitdesk.iss").read_text(encoding="utf-8")
+        self.assertIn("DefaultDirName={autopf}", installer)
+        self.assertIn("UninstallDisplayIcon", installer)
+        self.assertNotIn("GITDESK000", installer)
+        self.assertIn("AppImage", (ROOT / "packaging" / "build-linux.sh").read_text(encoding="utf-8"))
         workflow = ROOT / ".github" / "workflows" / "build.yml"
         self.assertTrue(workflow.is_file())
         for platform in ("windows-latest", "ubuntu-latest", "macos-latest"):
