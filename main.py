@@ -89,9 +89,6 @@ def main() -> int:
                 try:
                     with open(log, "w", encoding="utf-8") as handle:
                         json.dump(payload, handle, ensure_ascii=False)
-                try:
-                    with open(log, "w", encoding="utf-8") as handle:
-                        json.dump(payload, handle, ensure_ascii=False)
                 except OSError as exc:
                     print(f"SMOKE: cannot write log {log}: {exc}", file=sys.stderr)
             # 冒烟模式仅验证启动/读取，无需走用户窗口关闭与后台等待流程。
