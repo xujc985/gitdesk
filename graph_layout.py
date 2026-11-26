@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""真实父提交拓扑的彩色分支轨道布局。"""
+"""PyCharm 风格多车道提交拓扑布局。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -30,70 +30,73 @@ class GraphRow:
 
 
 def layout_commits(commits: Sequence) -> tuple[list[GraphRow], int]:
-    """按真实父子关系分配彩色分支轨道，第二父与主线永不共用。"""
+    """分配真实分支轨道：主线稳定，多个并行分支各占一列。
+
+    输入必须是 topo-order（子先于父）。每个活跃父提交对应一条分支，
+    当前节点消费自己的分支，其余活跃分支保留。第二父需要新分支时
+    分配下一个空闲车道，不把不同分支折叠到同一颜色/列。
+    """
+    # sha -> (lane, color)，表示该提交还未在历史中出现。
     active: dict[str, tuple[int, int]] = {}
     rows: list[GraphRow] = []
 
-    def free_column(used: set[int]) -> int:
-        column = 0
-        while column in used:
-            column += 1
-        return column
+    def free_lane(reserved: set[int]) -> int:
+        lane = 0
+        while lane in reserved:
+            lane += 1
+        return lane
 
-    def free_color(used: set[int]) -> int:
-        colors = {color for _column, color in active.values() if _column in used}
-        for index in range(len(PALETTE)):
-            if index not in colors:
-                return index
-        return len(colors) % len(PALETTE)
+    def free_color(reserved: set[int]) -> int:
+        used = {color for lane, color in active.values() if lane in reserved}
+        for color in range(len(PALETTE)):
+            if color not in used:
+                return color
+        return len(used) % len(PALETTE)
 
     for commit in commits:
         if commit.sha in active:
-            col, color = active[commit.sha]
+            lane, color = active.pop(commit.sha)
         else:
-            used = {column for column, _color in active.values()}
-            col, color = free_column(used), free_color(used)
-        parents = [parent for parent in getattr(commit, "parents", ()) if parent]
-        reserved = {column for column, _color in active.values()}
+            occupied = {lane for lane, _color in active.values()}
+            lane, color = free_lane(occupied), free_color(occupied)
+        # 其他待出现的提交仍在各自分支上，不能被当前提交覆盖。
+        reserved = {lane for lane, _color in active.values()}
+        parents = [p for p in getattr(commit, "parents", ()) if p]
         edges: list[GraphEdge] = []
         for index, parent in enumerate(parents):
             if parent in active:
-                parent_col, parent_color = active[parent]
-                # 父提交轨道一旦分配就固定，不能被另一分支改写。
-                # 合并节点通过不同来源的两条边自然汇流。
-                if index > 0 and parent_col == col:
-                    parent_col = free_column(reserved | {col})
-                    parent_color = free_color(reserved | {col})
-                    active[parent] = (parent_col, parent_color)
-                    reserved.add(parent_col)
-                # 不能把合并双方画成一条直线。
-                if index > 0 and parent_col == col:
-                    parent_col = free_column(reserved | {col})
-                    parent_color = free_color(reserved | {col})
-                    active[parent] = (parent_col, parent_color)
-                    reserved.add(parent_col)
+                parent_lane, parent_color = active[parent]
+                # 同一提交被多个分支需要时，第一父继承当前主线；
+                # 第二父若与当前列重合，则为该父分支保留独立车道。
+                if index == 0:
+                    parent_lane, parent_color = lane, color
+                elif parent_lane == lane:
+                    parent_lane = free_lane(reserved | {lane})
+                    parent_color = free_color(reserved | {lane})
+                    reserved.add(parent_lane)
+                    active[parent] = (parent_lane, parent_color)
             else:
                 if index == 0:
-                    parent_col, parent_color = col, color
+                    parent_lane, parent_color = lane, color
                 else:
-                    parent_col = free_column(reserved | {col})
-                    parent_color = free_color(reserved | {col})
-                    reserved.add(parent_col)
-                active[parent] = (parent_col, parent_color)
-            edges.append(GraphEdge(col, parent_col, -1, color))
-        active.pop(commit.sha, None)
-        rows.append(GraphRow(commit.sha, col, color, edges,
+                    parent_lane = free_lane(reserved | {lane})
+                    parent_color = free_color(reserved | {lane})
+                    reserved.add(parent_lane)
+                active[parent] = (parent_lane, parent_color)
+            edges.append(GraphEdge(lane, parent_lane, -1, color))
+        # 当前节点已出现，其他分支继续存在；不要把整条历史删掉。
+        rows.append(GraphRow(commit.sha, lane, color, edges,
                              merge=len(parents) > 1))
 
+    # 第二父边的颜色跟随目标分支；主线颜色不因合流跳变。
     positions = {row.sha: (index, row.column) for index, row in enumerate(rows)}
     for index, row in enumerate(rows):
         row.head = bool(getattr(commits[index], "is_head", False))
         for parent_index, parent in enumerate(getattr(commits[index], "parents", ())):
             if parent_index < len(row.edges) and parent in positions:
-                parent_row, parent_col = positions[parent]
+                parent_row, parent_lane = positions[parent]
                 row.edges[parent_index] = GraphEdge(
-                    row.column, parent_col, parent_row,
-                    # 边的颜色跟随目标父分支，保证节点与连线一致。
+                    row.column, parent_lane, parent_row,
                     rows[parent_row].color_index)
     lane_count = max(
         [row.column for row in rows]

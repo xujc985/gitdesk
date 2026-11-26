@@ -61,6 +61,17 @@ class GraphLayoutTest(unittest.TestCase):
         self.assertEqual(merge.edges[0].to_col, main.column)
         self.assertEqual(merge.edges[1].to_col, side.column)
 
+    def test_multiple_parallel_branches_have_separate_lanes(self):
+        rows, lanes = layout_commits([
+            c("m3", ["a3", "b3"]), c("b3", ["a2"]),
+            c("a3", ["a2"]), c("a2", ["a1"]), c("a1", ["base"]),
+            c("base", [])])
+        self.assertGreaterEqual(lanes, 2)
+        # 两条并行分支不能挤在同一轨道，合流后仍保留来源边。
+        self.assertEqual(rows[0].column, 0)
+        self.assertNotEqual(rows[1].column, rows[0].column)
+        self.assertEqual(rows[0].edges[1].to_col, rows[1].column)
+
     def test_empty_and_truncated_history(self):
         rows, lanes = layout_commits([])
         self.assertEqual((rows, lanes), ([], 1))
