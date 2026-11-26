@@ -247,20 +247,17 @@ class LogPage(QWidget):
             return
         self._graph_scroll_lock = True
         bar = self.table.verticalScrollBar()
-        if bar.maximum():
-            self.graph.scroll_to_fraction(bar.value() / bar.maximum())
-        else:
-            self.graph.scroll_to_fraction(0)
+        row_height = self.table.rowHeight(0) if self.model.rowCount() else 32
+        self.graph.scroll_to_row(round(bar.value() / max(1, row_height)))
         self._graph_scroll_lock = False
 
     def _graph_scroll(self, value: int) -> None:
         if self._graph_scroll_lock:
             return
         self._graph_scroll_lock = True
-        if self.graph.verticalScrollBar().maximum():
-            self.table.verticalScrollBar().setValue(round(
-                value / self.graph.verticalScrollBar().maximum()
-                * self.table.verticalScrollBar().maximum()))
+        row = round(value / self.graph.ROW)
+        if row >= 0:
+            self.table.verticalScrollBar().setValue(row * self.table.rowHeight(0))
         self._graph_scroll_lock = False
 
     def _select(self, current, _previous=None) -> None:

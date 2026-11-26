@@ -52,19 +52,29 @@ class HistoryGraph(QGraphicsView):
             y = index * self.ROW + self.ROW / 2
             for edge in row.edges:
                 x1, x2 = 14 + edge.from_col * self.LANE, 14 + edge.to_col * self.LANE
-                y2 = (edge.to_row * self.ROW + self.ROW / 2
-                      if edge.to_row >= 0 else len(self.rows) * self.ROW)
+                target_row = edge.to_row if edge.to_row >= 0 else len(self.rows)
+                # 父子提交跨出当前视口时，仅绘制可见区段，不构造
+                # 跨越数百/数千行的曲线，避免旧线弯折或看似消失。
+                if target_row > index + 1:
+                    if index > last or target_row < first:
+                        continue
+                    y_start = y
+                    # 父提交在可视区域外时，线继续延伸出视口，而不是消失。
+                    y_end = min(target_row, last) * self.ROW + self.ROW / 2
+                else:
+                    y_start = y
+                    y_end = target_row * self.ROW + self.ROW / 2
                 color = QColor(PALETTE[edge.color_index % len(PALETTE)])
                 pen = QPen(color, 1.8)
                 pen.setCapStyle(Qt.PenCapStyle.RoundCap)
                 path = QPainterPath()
-                path.moveTo(x1, y)
+                path.moveTo(x1, y_start)
                 if x1 == x2:
-                    path.lineTo(x1, y2)
+                    path.lineTo(x1, y_end)
                 else:
-                    bend = min(12, abs(y2 - y) / 3)
-                    path.lineTo(x1, y + bend)
-                    path.cubicTo(x1, y2 - bend, x2, y + bend, x2, y2)
+                    bend = min(12, abs(y_end - y_start) / 3)
+                    path.lineTo(x1, y_start + bend)
+                    path.cubicTo(x1, y_end - bend, x2, y_start + bend, x2, y_end)
                 self.scene().addPath(path, pen)
         for index in range(first, last):
             row = self.rows[index]
@@ -79,9 +89,9 @@ class HistoryGraph(QGraphicsView):
                 self.scene().addEllipse(QRectF(x - 7, y - 7, 14, 14),
                                         QPen(color, 1.8), Qt.BrushStyle.NoBrush)
 
-    def scroll_to_fraction(self, first: float, _last: float = 1.0) -> None:
-        bar = self.verticalScrollBar()
-        bar.setValue(round(first * bar.maximum()))
+    def scroll_to_row(self, row: int) -> None:
+        """让指定提交行位于视口顶部，与提交表格逐行对齐。"""
+        self.verticalScrollBar().setValue(max(0, row * self.ROW))
         self.rebuild()
 
     def mousePressEvent(self, event) -> None:

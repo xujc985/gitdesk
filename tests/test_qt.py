@@ -199,6 +199,21 @@ class QtIntegrationTest(unittest.TestCase):
         self.assertFalse(runner.thread.isRunning())
         self.assertFalse(runner.busy)
 
+    def test_graph_keeps_edges_when_scrolling_history(self):
+        from graph_layout import GraphRow, GraphEdge
+        rows = [GraphRow(f"new", 0, 0, [GraphEdge(0, 0, 70, 0)])]
+        rows += [GraphRow(f"c{i}", 0, 0, [GraphEdge(0, 0, i + 1, 0)]) for i in range(1, 70)]
+        rows += [GraphRow("old", 0, 0, [])]
+        graph = self.window.pages[1].graph
+        graph.set_rows(rows, 1)
+        graph.resize(80, 240)
+        graph.scroll_to_row(55)
+        self.assertGreater(len(graph.scene().items()), 0)
+        from PySide6.QtWidgets import QGraphicsPathItem
+        paths = [item for item in graph.scene().items() if isinstance(item, QGraphicsPathItem)]
+        self.assertTrue(paths, "滚动后仍应存在跨屏分支连线")
+        self.assertEqual(graph.verticalScrollBar().value(), 55 * graph.ROW)
+
     def test_color_graph_merge(self):
         self.repo.create_branch("feature")
         with open(os.path.join(self.path, "feature.txt"), "w") as f:
