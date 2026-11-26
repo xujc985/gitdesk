@@ -18,17 +18,25 @@ class HistoryGraph(QGraphicsView):
         super().__init__(parent)
         self.rows = []
         self.selected = -1
+        self._long_edges = []
         self.setScene(QGraphicsScene(self))
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setFrameShape(QGraphicsView.Shape.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setBackgroundBrush(QColor(theme.EDITOR))
+        self.verticalScrollBar().valueChanged.connect(lambda _value: self.rebuild())
         self.setMinimumWidth(58)
         self.setMaximumWidth(240)
 
     def set_rows(self, rows, lanes: int) -> None:
         self.rows = rows
+        self._long_edges = []
+        for index, row in enumerate(rows):
+            for edge in row.edges:
+                target_row = edge.to_row if edge.to_row >= 0 else len(rows)
+                if target_row - index > 1:
+                    self._long_edges.append((index, target_row, edge))
         width = max(58, lanes * self.LANE + 16)
         self.setFixedWidth(min(240, width))
         self.scene().setSceneRect(0, 0, width, len(rows) * self.ROW + 20)
@@ -47,23 +55,20 @@ class HistoryGraph(QGraphicsView):
         bottom_left = self.mapToScene(rect.bottomLeft())
         first = max(0, int(top_left.y() // self.ROW) - 3)
         last = min(len(self.rows), int(bottom_left.y() // self.ROW) + 4)
+        # 只遍历到可视末行，但必须包含起点在屏幕上方、终点在屏内
+        # 或屏幕下方的长边。按相交区段绘制，不能丢掉父提交在屏外的边。
+        visible_edges = list(self._long_edges)
         for index in range(first, last):
-            row = self.rows[index]
-            y = index * self.ROW + self.ROW / 2
-            for edge in row.edges:
+            for edge in self.rows[index].edges:
+                visible_edges.append((index, edge.to_row if edge.to_row >= 0 else len(self.rows), edge))
+        for index, target_row, edge in visible_edges:
+                start_index = max(index, first - 1)
+                end_index = min(target_row, last)
+                if end_index < start_index or index > last:
+                    continue
                 x1, x2 = 14 + edge.from_col * self.LANE, 14 + edge.to_col * self.LANE
-                target_row = edge.to_row if edge.to_row >= 0 else len(self.rows)
-                # 父子提交跨出当前视口时，仅绘制可见区段，不构造
-                # 跨越数百/数千行的曲线，避免旧线弯折或看似消失。
-                if target_row > index + 1:
-                    if index > last or target_row < first:
-                        continue
-                    y_start = y
-                    # 父提交在可视区域外时，线继续延伸出视口，而不是消失。
-                    y_end = min(target_row, last) * self.ROW + self.ROW / 2
-                else:
-                    y_start = y
-                    y_end = target_row * self.ROW + self.ROW / 2
+                y_start = start_index * self.ROW + self.ROW / 2
+                y_end = end_index * self.ROW + self.ROW / 2
                 color = QColor(PALETTE[edge.color_index % len(PALETTE)])
                 pen = QPen(color, 1.8)
                 pen.setCapStyle(Qt.PenCapStyle.RoundCap)

@@ -213,6 +213,10 @@ class QtIntegrationTest(unittest.TestCase):
         paths = [item for item in graph.scene().items() if isinstance(item, QGraphicsPathItem)]
         self.assertTrue(paths, "滚动后仍应存在跨屏分支连线")
         self.assertEqual(graph.verticalScrollBar().value(), 55 * graph.ROW)
+        graph.scroll_to_row(69)
+        self.assertTrue(any(isinstance(item, QGraphicsPathItem)
+                            for item in graph.scene().items()),
+                        "父提交离开视口上方时仍应保留延伸连线")
 
     def test_conflict_ui_resolution(self):
         self.repo.create_branch("side")
