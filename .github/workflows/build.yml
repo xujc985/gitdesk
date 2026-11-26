@@ -69,11 +69,17 @@ jobs:
           PYTHONUTF8: "1"
           PYTHONIOENCODING: "utf-8"
         run: ./packaging/verify-install.ps1
-      - name: Upload package
+      - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
           name: gitdesk-${{ matrix.platform }}
-          path: release/*
+          path: |
+            release/*.exe
+            release/*.exe.sha256
+            release/*.AppImage
+            release/*.AppImage.sha256
+            release/*.dmg
+            release/*.dmg.sha256
           if-no-files-found: error
 
       - name: Publish installers to GitHub Release
@@ -87,5 +93,8 @@ jobs:
               --target "${GITHUB_SHA}" --title "GitDesk ${GITHUB_REF_NAME}" \
               --notes "GitDesk native installers: Windows Setup, Linux AppImage, macOS app DMG."
           fi
-          gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --clobber release/*
+          gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --clobber \
+            release/*.exe release/*.exe.sha256 \
+            release/*.AppImage release/*.AppImage.sha256 \
+            release/*.dmg release/*.dmg.sha256
           echo "Published ${GITHUB_REF_NAME} installers to GitHub Release."
