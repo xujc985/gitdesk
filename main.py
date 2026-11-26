@@ -56,6 +56,16 @@ from ui_qt.platform import app_icon, prepare_environment
 
 
 def main() -> int:
+    try:
+        return _main()
+    except Exception:
+        # PyInstaller 顶层导入/Qt 初始化异常必须被记录，否则 windowed
+        # 进程只显示退出码 1，CI 得不到任何诊断。
+        report_startup_error()
+        raise
+
+
+def _main() -> int:
     # 高 DPI 由 Qt 自动处理，不需要 WebView 或额外原生库。
     prepare_environment()
     app = QApplication(sys.argv)

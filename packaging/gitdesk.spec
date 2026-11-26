@@ -5,6 +5,7 @@
 onedir 避免 onefile 每次启动解压 Qt，启动更快、内存/磁盘更可控。
 """
 from pathlib import Path
+import os
 import sys
 
 from PyInstaller.utils.hooks import collect_submodules
@@ -45,7 +46,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=not IS_WINDOWS and not IS_MAC,
+    console=bool(os.environ.get("GITDESK_CI_CONSOLE")) or (not IS_WINDOWS and not IS_MAC),
     disable_windowed_traceback=False,
     argv_emulation=IS_MAC,
     target_arch=None,

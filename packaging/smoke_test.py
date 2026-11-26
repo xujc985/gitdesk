@@ -49,7 +49,8 @@ def run() -> int:
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
         # cwd 不在开发目录，防止意外导入源码/开发环境资源。
         process = subprocess.Popen([str(executable), str(repo)], cwd=temp, env=env,
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True, encoding="utf-8", errors="replace")
         deadline = time.monotonic() + 45
         while not log.is_file() and time.monotonic() < deadline:
             if process.poll() is not None:
@@ -60,7 +61,8 @@ def run() -> int:
             # 直接 kill 仅本测试启动的进程，绝不调用会再次阻塞的 wait。
             process.kill()
         returncode = process.wait(timeout=10)
-        stdout = stderr = ""
+        stdout = process.stdout.read() if process.stdout else ""
+        stderr = ""
         if returncode is None:
             print("打包应用未能正常结束", file=sys.stderr)
             return 1

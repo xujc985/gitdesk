@@ -40,6 +40,8 @@ jobs:
       - name: Build Windows portable ZIP
         if: matrix.platform == 'windows'
         shell: pwsh
+        env:
+          GITDESK_CI_CONSOLE: "1"
         run: ./packaging/build-windows.ps1
       - name: Build Linux AppDir archive
         if: matrix.platform == 'linux'
