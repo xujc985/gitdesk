@@ -1,0 +1,54 @@
+name: Build GitDesk
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, platform: windows, script: packaging/build-windows.ps1 }
+          - { os: ubuntu-latest, platform: linux, script: packaging/build-linux.sh }
+          - { os: macos-latest, platform: macos, script: packaging/build-macos.sh }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.10,<7"
+      - name: Run tests
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests -v
+      - name: Install Linux Qt runtime libraries
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libxcb-cursor0 libgl1 libegl1 libxkbcommon-x11-0
+      - name: Build Windows portable ZIP
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./packaging/build-windows.ps1
+      - name: Build Linux AppDir archive
+        if: matrix.platform == 'linux'
+        run: sh packaging/build-linux.sh
+      - name: Build macOS app and DMG (unsigned development build)
+        if: matrix.platform == 'macos'
+        env:
+          GITDESK_SIGN: "0"
+        run: sh packaging/build-macos.sh
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitdesk-${{ matrix.platform }}
+          path: release/*
+          if-no-files-found: error

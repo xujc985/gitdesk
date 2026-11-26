@@ -1,0 +1,2 @@
+# 构建专用依赖；应用运行仍只需要 PySide6 Essentials。
+pyinstaller>=6.10,<7

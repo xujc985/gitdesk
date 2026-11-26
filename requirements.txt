@@ -1,0 +1,2 @@
+# 仅 Qt Widgets 运行库；不包含 QtWebEngine / Electron / 浏览器内核。
+PySide6-Essentials>=6.8,<7

@@ -1,0 +1,9 @@
+# 本地产物与构建缓存（不提交到源码仓库）
+build/
+dist/
+release/
+*.spec.bak
+__pycache__/
+*.py[cod]
+*.log
+.gitdesk/

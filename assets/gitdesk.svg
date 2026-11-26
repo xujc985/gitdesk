@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#243a5a"/>
+      <stop offset="1" stop-color="#171e2b"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#83b9ff"/>
+      <stop offset="1" stop-color="#68d9a2"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#080c14" flood-opacity=".45"/>
+    </filter>
+  </defs>
+  <rect x="10" y="10" width="236" height="236" rx="54" fill="url(#bg)"/>
+  <rect x="17" y="17" width="222" height="222" rx="48" fill="none" stroke="#52749d" stroke-opacity=".32" stroke-width="2"/>
+  <g fill="none" stroke="url(#line)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M77 68v120"/>
+    <path d="M77 120c0 31 102 31 102 0V76"/>
+    <path d="M77 146c0 27 53 27 53 0v-23"/>
+  </g>
+  <g fill="#d6e9ff" stroke="#263c5d" stroke-width="5" filter="url(#shadow)">
+    <circle cx="77" cy="65" r="21"/>
+    <circle cx="77" cy="192" r="21"/>
+  </g>
+  <g fill="#80dfa9" stroke="#244f4a" stroke-width="5" filter="url(#shadow)">
+    <circle cx="179" cy="73" r="21"/>
+    <circle cx="130" cy="120" r="16"/>
+  </g>
+  <path d="M67 57l6-4m-6 18l6 4m-6 113l6-4m-6 18l6 4" stroke="#ffffff" stroke-opacity=".65" stroke-width="3" stroke-linecap="round"/>
+</svg>
