@@ -133,6 +133,30 @@ class TestRepoInitAndStatus(RepoTestCase):
         self.assertFalse(os.path.exists(os.path.join(self.repo_path, "new.txt")))
         self.assertFalse(self.repo.status().files)
 
+    def test_conflict_stage_resolution(self):
+        self.commit_file("a.txt", "base\n", "base")
+        self.repo.create_branch("side")
+        self.commit_file("a.txt", "side\n", "side")
+        self.repo.checkout("master")
+        self.commit_file("a.txt", "master\n", "master")
+        with self.assertRaises(gb.GitError):
+            self.repo.merge("side")
+        self.assertIn("master", self.repo.conflict_file("a.txt", "ours"))
+        self.assertIn("side", self.repo.conflict_file("a.txt", "theirs"))
+        self.repo.resolve_conflict("a.txt", "theirs")
+        with open(os.path.join(self.repo_path, "a.txt"), encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "side\n")
+        self.assertFalse(self.repo.status().conflicted)
+
+    def test_apply_patch_cached_only_selected_hunk(self):
+        self.commit_file("a.txt", "one\n\n\n\n\n\n\n\n\n\nten\n", "base")
+        self.write("a.txt", "ONE\n\n\n\n\n\n\n\n\n\nTEN\n")
+        diff = self.repo.diff("a.txt")
+        from diff_hunks import parse_hunks, patch_for_hunks
+        self.assertTrue(parse_hunks(diff))
+        self.repo.apply_patch_cached(patch_for_hunks(diff, [0]))
+        self.assertIn("+ONE", self.repo.diff("a.txt", staged=True))
+
     def test_ahead_behind(self):
         bare = self.make_bare_origin()
         self.commit_file("a.txt", "v1\n", "c1")

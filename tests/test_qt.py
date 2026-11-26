@@ -214,6 +214,33 @@ class QtIntegrationTest(unittest.TestCase):
         self.assertTrue(paths, "滚动后仍应存在跨屏分支连线")
         self.assertEqual(graph.verticalScrollBar().value(), 55 * graph.ROW)
 
+    def test_conflict_ui_resolution(self):
+        self.repo.create_branch("side")
+        with open(os.path.join(self.path, "readme.md"), "w") as f:
+            f.write("side\n")
+        self.repo.stage_all()
+        self.repo.commit("side")
+        self.repo.checkout("master")
+        with open(os.path.join(self.path, "readme.md"), "w") as f:
+            f.write("master\n")
+        self.repo.stage_all()
+        self.repo.commit("master")
+        with self.assertRaises(gb.GitError):
+            self.repo.merge("side")
+        page = self.window.pages[0]
+        page.refresh()
+        self.wait(condition=lambda: page.status is not None and bool(page.status.conflicted))
+        page.tree.topLevelItem(0).child(0).setSelected(True)
+        import ui_qt.changes as changes_mod
+        original_confirm = changes_mod.confirm
+        changes_mod.confirm = lambda *args, **kwargs: True
+        self.addCleanup(lambda: setattr(changes_mod, "confirm", original_confirm))
+        self.assertTrue(page.ours_button.isVisible() or not page.ours_button.isHidden())
+        page._resolve("theirs")
+        self.wait(condition=lambda: not self.repo.status().conflicted)
+        with open(os.path.join(self.path, "readme.md"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "side\n")
+
     def test_color_graph_merge(self):
         self.repo.create_branch("feature")
         with open(os.path.join(self.path, "feature.txt"), "w") as f:

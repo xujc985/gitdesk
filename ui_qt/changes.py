@@ -59,11 +59,32 @@ class ChangesPage(QWidget):
         right = QWidget()
         preview = QVBoxLayout(right)
         preview.setContentsMargins(8, 12, 14, 12)
+        diff_bar = QHBoxLayout()
         self.diff_title = QLabel("差异预览")
         self.diff_title.setProperty("muted", True)
-        preview.addWidget(self.diff_title)
+        diff_bar.addWidget(self.diff_title, 1)
+        self.side_by_side = QCheckBox("并排")
+        self.side_by_side.setToolTip("切换统一 diff 与左右并排差异")
+        self.side_by_side.toggled.connect(self._toggle_diff_mode)
+        diff_bar.addWidget(self.side_by_side)
+        preview.addLayout(diff_bar)
         self.diff = DiffView()
         preview.addWidget(self.diff, 1)
+        self.conflict_actions = QHBoxLayout()
+        self.conflict_label = QLabel("冲突文件：选择保留版本，或手动编辑后暂存")
+        self.conflict_label.setProperty("muted", True)
+        self.conflict_actions.addWidget(self.conflict_label, 1)
+        self.ours_button = QPushButton("保留我方")
+        self.ours_button.clicked.connect(lambda: self._resolve("ours"))
+        self.theirs_button = QPushButton("保留对方")
+        self.theirs_button.clicked.connect(lambda: self._resolve("theirs"))
+        self.conflict_actions.addWidget(self.ours_button)
+        self.conflict_actions.addWidget(self.theirs_button)
+        preview.addLayout(self.conflict_actions)
+        self.conflict_label.hide()
+        self.ours_button.hide()
+        self.theirs_button.hide()
+        self._current_file = None
         splitter.addWidget(right)
         splitter.setSizes([450, 900])
 
@@ -126,10 +147,19 @@ class ChangesPage(QWidget):
         if not files or not self.repo:
             return
         file = files[0]
+        self._current_file = file
         repo = self.repo
+        self._current_file = file
+        conflict = file.conflicted
+        self.conflict_label.setVisible(conflict)
+        self.ours_button.setVisible(conflict)
+        self.theirs_button.setVisible(conflict)
         self._diff_generation += 1
         generation = self._diff_generation
         self.diff_title.setText(file.path)
+        if self.side_by_side.isChecked() and not file.untracked:
+            self._load_side_diff(file, repo, generation)
+            return
 
         def work():
             if file.untracked:
@@ -144,7 +174,7 @@ class ChangesPage(QWidget):
         def ok(text):
             if generation == self._diff_generation and repo is self.repo:
                 self.diff.set_content(text)
-        self.app.run("查看差异", work, ok)
+        self.app.run("查看差异", work, ok, coalesce=True)
 
     def _menu(self, point) -> None:
         files = self._files()
@@ -155,14 +185,76 @@ class ChangesPage(QWidget):
         paths = [file.path for file in files]
         if any(file.unstaged or file.untracked for file in files):
             menu.addAction("暂存", lambda: self._write("暂存", lambda r: r.stage(paths)))
+        if len(files) == 1 and not files[0].untracked and not files[0].conflicted:
+            menu.addAction("逐块暂存…", self._stage_hunks)
         if any(file.staged for file in files):
             menu.addAction("取消暂存", lambda: self._write("取消暂存", lambda r: r.unstage(paths)))
         menu.addSeparator()
         if any(file.unstaged and not file.untracked for file in files):
             menu.addAction("回滚更改…", lambda: self._discard(paths, False))
+        if any(file.conflicted for file in files):
+            menu.addAction("查看我方 / 对方", lambda: self._show_conflict_sides())
+            menu.addAction("保留我方并标记解决", lambda: self._resolve("ours"))
+            menu.addAction("保留对方并标记解决", lambda: self._resolve("theirs"))
         if any(file.untracked for file in files):
             menu.addAction("删除文件…", lambda: self._discard(paths, True))
         menu.exec(self.tree.viewport().mapToGlobal(point))
+
+    def _stage_hunks(self) -> None:
+        file = self._current_file
+        if not file or not self.repo:
+            return
+        repo = self.repo
+
+        def work():
+            return repo.diff(file.path, staged=file.staged and not file.unstaged,
+                             worktree=file.staged and file.unstaged)
+
+        def ok(diff):
+            from ui_qt.hunks import stage_hunks
+            if not stage_hunks(self, self.app, repo, file.path, diff):
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.information(self, "逐块暂存", "该文件没有可逐块选择的差异。")
+        self.app.run("读取差异块", work, ok)
+
+    def _toggle_diff_mode(self, _checked=False) -> None:
+        self._select()
+
+    def _load_side_diff(self, file, repo, generation) -> None:
+        """并排展示基准/修改后内容；冲突时展示我方/对方。"""
+        import os
+
+        def work():
+            if file.conflicted:
+                left = repo.conflict_file(file.path, "ours")
+                right = repo.conflict_file(file.path, "theirs")
+                return left, right, "我方 (当前分支)", "对方 (合并分支)"
+            base = repo.show_file("HEAD", file.path)
+            with open(os.path.join(repo.path, file.path), encoding="utf-8",
+                      errors="replace") as handle:
+                current = handle.read()
+            return base, current, "HEAD", "工作区"
+
+        def ok(result):
+            if generation != self._diff_generation or repo is not self.repo:
+                return
+            left, right, left_title, right_title = result
+            from ui_qt.diff_split import show_side_by_side
+            show_side_by_side(self, file.path, left, right, left_title, right_title)
+        self.app.run("并排差异", work, ok, coalesce=True)
+
+    def _show_conflict_sides(self) -> None:
+        if self._current_file and self._current_file.conflicted:
+            self._load_side_diff(self._current_file, self.repo,
+                                 self._diff_generation)
+
+    def _resolve(self, side: str) -> None:
+        file = self._current_file
+        if not file or not file.conflicted:
+            return
+        title = "保留我方" if side == "ours" else "保留对方"
+        if confirm(self, title, f"将使用{title}版本覆盖 {file.path}，并标记冲突已解决？"):
+            self.app.write("解决冲突", lambda repo: repo.resolve_conflict(file.path, side))
 
     def _write(self, name, fn) -> None:
         self.app.write(name, fn)

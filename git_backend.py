@@ -446,6 +446,24 @@ class Repo:
     def show_file(self, sha: str, path: str) -> str:
         return self.git(["show", f"{sha}:{path}"])
 
+    def conflict_file(self, path: str, side: str) -> str:
+        """读取冲突文件的某一方：base/ours/theirs，保持原文本不做合并。"""
+        stages = {"base": 1, "ours": 2, "theirs": 3}
+        if side not in stages:
+            raise ValueError(f"未知冲突方：{side}")
+        return self.git(["show", f":{stages[side]}:{path}"])
+
+    def resolve_conflict(self, path: str, side: str) -> None:
+        """明确选择 ours/theirs 一方解决冲突，并将结果加入索引。"""
+        if side not in ("ours", "theirs"):
+            raise ValueError("解决冲突必须选择 ours 或 theirs")
+        self.git(["checkout", f"--{side}", "--", path])
+        self.git(["add", "--", path])
+
+    def apply_patch_cached(self, patch: str) -> None:
+        """将 UI 选中的标准 unified diff 只应用到暂存区，不改工作区。"""
+        self.git(["apply", "--cached", "--whitespace=nowarn", "-"], input_text=patch)
+
     def blame(self, path: str) -> str:
         return self.git(["blame", "--date=short", path])
 
