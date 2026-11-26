@@ -41,7 +41,9 @@ def run() -> int:
                 / "GitDesk" / "package-smoke.json"))
         log = Path(env["GITDESK_SMOKE_LOG"])
         log.parent.mkdir(parents=True, exist_ok=True)
-        if sys.platform != "win32" and not env.get("DISPLAY") and sys.platform != "darwin":
+        if not env.get("DISPLAY") and sys.platform != "darwin":
+            # Windows CI runners 通常没有交互桌面；offscreen 只影响验证，
+            # 实际用户启动仍使用原生 Windows GUI。
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
         # cwd 不在开发目录，防止意外导入源码/开发环境资源。
         process = subprocess.Popen([str(executable), str(repo)], cwd=temp, env=env,
@@ -54,6 +56,12 @@ def run() -> int:
             process.kill()
             process.communicate()
             print("打包应用未在 45 秒内正常退出", file=sys.stderr)
+            for candidate in (Path.home() / ".gitdesk" / "startup-error.log",
+                              Path(os.environ.get("LOCALAPPDATA", str(Path.home())))
+                              / "GitDesk" / "startup-error.log"):
+                if candidate.is_file():
+                    print(f"启动日志 {candidate}:\n" + candidate.read_text(encoding="utf-8")[-2500:],
+                          file=sys.stderr)
             return 1
         if process.returncode != 0:
             print(f"应用退出码 {process.returncode}\n{stdout}\n{stderr}", file=sys.stderr)
