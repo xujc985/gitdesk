@@ -89,12 +89,15 @@ def main() -> int:
                 try:
                     with open(log, "w", encoding="utf-8") as handle:
                         json.dump(payload, handle, ensure_ascii=False)
+                try:
+                    with open(log, "w", encoding="utf-8") as handle:
+                        json.dump(payload, handle, ensure_ascii=False)
                 except OSError as exc:
                     print(f"SMOKE: cannot write log {log}: {exc}", file=sys.stderr)
-            window._closing = True  # 验证模式不弹后台任务确认框
-            window.close()
-            app.quit()
-            print("SMOKE: exit", flush=True)
+            # 冒烟模式仅验证启动/读取，无需走用户窗口关闭与后台等待流程。
+            # 直接结束测试进程，避免 CI 无桌面/Qt 插件下 closeEvent 卡住。
+            app.exit(0)
+            os._exit(0)
         QTimer.singleShot(int(os.environ["GITDESK_SMOKE_EXIT_MS"]), smoke_report)
         # 打包测试模式下不等待可能进行中的后台 Git：验证完成后直接退出
         # QApplication，避免窗口 closeEvent 与用户交互/队列关闭互相等待。
