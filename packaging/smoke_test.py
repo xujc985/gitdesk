@@ -57,14 +57,9 @@ def run() -> int:
             time.sleep(0.25)
         if process.poll() is None:
             # 启动与历史已验证：CI 的 windowed 进程不应卡在用户关闭流程。
-            # 仅结束本测试启动的进程，绝不操作其他 GitDesk 实例。
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
-        returncode = process.returncode
+            # 直接 kill 仅本测试启动的进程，绝不调用会再次阻塞的 wait。
+            process.kill()
+        returncode = process.wait(timeout=10)
         stdout = stderr = ""
         if returncode is None:
             print("打包应用未能正常结束", file=sys.stderr)
@@ -77,6 +72,9 @@ def run() -> int:
             return 1
         if not log.is_file():
             print(f"未生成启动验证日志：{log}（进程返回码 {returncode}）\n{stdout}\n{stderr}", file=sys.stderr)
+            error_log = Path(str(log) + ".error.log")
+            if error_log.is_file():
+                print("打包启动异常：\n" + error_log.read_text(encoding="utf-8"), file=sys.stderr)
             return 1
         content = log.read_text(encoding="utf-8")
         for expected in ('"status": "ok"', '"repository":', '"history": 1',

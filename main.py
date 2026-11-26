@@ -15,6 +15,9 @@ if getattr(sys, "frozen", False) and sys.platform == "win32":
     # 打包后的普通用户目录优先使用 %LOCALAPPDATA%，避免只读安装位置。
     LOG_FILE = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
                             "GitDesk", "startup-error.log")
+if os.environ.get("GITDESK_SMOKE_LOG"):
+    # CI/打包诊断将启动异常写到明确可读的构建目录。
+    LOG_FILE = os.environ["GITDESK_SMOKE_LOG"] + ".error.log"
 
 
 def report_startup_error() -> None:
