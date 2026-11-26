@@ -35,6 +35,8 @@ def run() -> int:
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         env = os.environ.copy()
         env["GITDESK_SMOKE_EXIT_MS"] = "4500"
+        env.setdefault("PYTHONUTF8", "1")
+        env.setdefault("PYTHONIOENCODING", "utf-8")
         env["GITDESK_SMOKE_LOG"] = os.environ.get(
             "GITDESK_SMOKE_LOG",
             str(Path(os.environ.get("LOCALAPPDATA", str(Path.home())))

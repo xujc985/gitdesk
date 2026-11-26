@@ -42,6 +42,8 @@ jobs:
         shell: pwsh
         env:
           GITDESK_CI_CONSOLE: "1"
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
         run: ./packaging/build-windows.ps1
       - name: Build Linux AppDir archive
         if: matrix.platform == 'linux'

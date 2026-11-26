@@ -85,7 +85,7 @@ def _main() -> int:
             import PySide6
             log = os.environ.get("GITDESK_SMOKE_LOG")
             if log:
-                print(f"SMOKE: repo={window.repo.path if window.repo else None} log={log}", flush=True)
+                print("SMOKE: repo path received; log=" + str(log).encode("ascii", "backslashreplace").decode("ascii"), flush=True)
             if log and window.repo:
                 log_page = window.pages[1]
                 if not log_page.commits:
