@@ -72,6 +72,13 @@ def _main() -> int:
     app.setApplicationName("GitDesk")
     app.setOrganizationName("GitDesk")
     app.setWindowIcon(app_icon())
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            # 让任务栏把窗口归入 GitDesk，而不是 pythonw.exe。
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GitDesk.Desktop")
+        except Exception:
+            pass
     theme.apply(app)
     window = MainWindow(sys.argv[1] if len(sys.argv) > 1 else "")
     window.show()
