@@ -28,6 +28,11 @@ class PlatformAssetsTest(unittest.TestCase):
             self.assertNotIn(b"\r\n", data)
             self.assertIn(b"python3", data) if name == "run.sh" else None
 
+        self.assertTrue((ROOT / "assets" / "gitdesk.icns").is_file())
+        icns = (ROOT / "assets" / "gitdesk.icns").read_bytes()
+        self.assertEqual(icns[:4], b"icns")
+        self.assertGreater(len(icns), 1024)
+
     def test_packaging_assets_and_workflow(self):
         spec = (ROOT / "packaging" / "gitdesk.spec").read_text(encoding="utf-8")
         self.assertIn("onedir", spec)

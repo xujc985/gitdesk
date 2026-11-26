@@ -51,7 +51,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(ROOT / "assets" / ("gitdesk.ico" if IS_WINDOWS else "gitdesk.png")),
+    icon=str(ROOT / "assets" / ("gitdesk.ico" if IS_WINDOWS else
+                                 "gitdesk.icns" if IS_MAC else "gitdesk.png")),
 )
 
 coll = COLLECT(
@@ -67,7 +68,7 @@ if IS_MAC:
     app = BUNDLE(
         coll,
         name="GitDesk.app",
-        icon=str(ROOT / "assets" / "gitdesk.png"),
+        icon=str(ROOT / "assets" / "gitdesk.icns"),
         bundle_identifier="dev.gitdesk.app",
         info_plist={
             "CFBundleName": "GitDesk",

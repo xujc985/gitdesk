@@ -5,6 +5,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 PYTHON=${PYTHON:-python3}
 "$PYTHON" -c 'import PySide6' >/dev/null 2>&1 || "$PYTHON" -m pip install -r requirements.txt
+"$PYTHON" -c 'import sys; print("Python:", sys.version); import PySide6; print("Qt:", PySide6.__version__)'
 "$PYTHON" -m PyInstaller --version >/dev/null 2>&1 || "$PYTHON" -m pip install 'pyinstaller>=6.10,<7'
 "$PYTHON" -m PyInstaller --noconfirm --clean --distpath "$ROOT/dist" --workpath "$ROOT/build/pyinstaller" packaging/gitdesk.spec
 export GITDESK_SMOKE_LOG="$ROOT/build/package-smoke.json"
