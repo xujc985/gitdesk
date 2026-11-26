@@ -241,6 +241,16 @@ class QtIntegrationTest(unittest.TestCase):
         with open(os.path.join(self.path, "readme.md"), encoding="utf-8") as f:
             self.assertEqual(f.read(), "side\n")
 
+    def test_side_diff_dialog_reused(self):
+        from ui_qt.diff_split import show_side_by_side
+        page = self.window.pages[0]
+        first = show_side_by_side(page, "a.txt", "old", "new", "HEAD", "工作区")
+        second = show_side_by_side(page, "a.txt", "old2", "new2", "HEAD", "工作区")
+        self.assertIsNot(first, second)
+        self.assertIs(page._side_diff_dialog, second)
+        second.close()
+        self.wait(condition=lambda: page._side_diff_dialog is None)
+
     def test_color_graph_merge(self):
         self.repo.create_branch("feature")
         with open(os.path.join(self.path, "feature.txt"), "w") as f:

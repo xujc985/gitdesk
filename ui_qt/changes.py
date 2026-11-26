@@ -186,6 +186,7 @@ class ChangesPage(QWidget):
         if any(file.unstaged or file.untracked for file in files):
             menu.addAction("暂存", lambda: self._write("暂存", lambda r: r.stage(paths)))
         if len(files) == 1 and not files[0].untracked and not files[0].conflicted:
+            # 逐块暂存基于工作区相对 HEAD 的完整差异，避免混合已暂存状态。
             menu.addAction("逐块暂存…", self._stage_hunks)
         if any(file.staged for file in files):
             menu.addAction("取消暂存", lambda: self._write("取消暂存", lambda r: r.unstage(paths)))
@@ -207,15 +208,15 @@ class ChangesPage(QWidget):
         repo = self.repo
 
         def work():
-            return repo.diff(file.path, staged=file.staged and not file.unstaged,
-                             worktree=file.staged and file.unstaged)
+            # 工作区相对 HEAD 的完整差异才是可独立应用的 hunk 选择模型。
+            return repo.diff(file.path, worktree=True)
 
         def ok(diff):
+            if repo is not self.repo or file is not self._current_file:
+                return
             from ui_qt.hunks import stage_hunks
-            if not stage_hunks(self, self.app, repo, file.path, diff):
-                from PySide6.QtWidgets import QMessageBox
-                QMessageBox.information(self, "逐块暂存", "该文件没有可逐块选择的差异。")
-        self.app.run("读取差异块", work, ok)
+            stage_hunks(self, self.app, repo, file.path, diff)
+        self.app.run("读取差异块", work, ok, coalesce=True)
 
     def _toggle_diff_mode(self, _checked=False) -> None:
         self._select()
@@ -229,7 +230,7 @@ class ChangesPage(QWidget):
                 left = repo.conflict_file(file.path, "ours")
                 right = repo.conflict_file(file.path, "theirs")
                 return left, right, "我方 (当前分支)", "对方 (合并分支)"
-            base = repo.show_file("HEAD", file.path)
+            base = repo.show_file("HEAD", file.path) if repo.has_parent("HEAD") else ""
             with open(os.path.join(repo.path, file.path), encoding="utf-8",
                       errors="replace") as handle:
                 current = handle.read()

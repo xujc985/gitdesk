@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPlainTextEdit,
-                               QSplitter, QVBoxLayout)
+                               QSplitter, QVBoxLayout, QWidget)
 
 from ui_qt.widgets import DiffHighlighter
 from ui_qt import theme
@@ -23,8 +23,12 @@ class SideText(QPlainTextEdit):
 def show_side_by_side(parent, path: str, left: str, right: str,
                       left_title: str, right_title: str) -> QDialog:
     dialog = QDialog(parent)
+    dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
     dialog.setWindowTitle(f"并排差异 — {path}")
     dialog.resize(1180, 720)
+    if hasattr(parent, "_side_diff_dialog") and parent._side_diff_dialog is not None:
+        parent._side_diff_dialog.close()
+    parent._side_diff_dialog = dialog
     layout = QVBoxLayout(dialog)
     layout.setContentsMargins(10, 10, 10, 10)
     split = QSplitter(Qt.Orientation.Horizontal)
@@ -57,9 +61,7 @@ def show_side_by_side(parent, path: str, left: str, right: str,
     left_view.horizontalScrollBar().valueChanged.connect(lambda _value: sync(left_view))
     right_view.horizontalScrollBar().valueChanged.connect(lambda _value: sync(right_view))
     dialog.show()
-    # 防止对话框在异步函数返回后被 Python 垃圾回收。
-    if not hasattr(parent, "_side_diff_dialogs"):
-        parent._side_diff_dialogs = []
-    parent._side_diff_dialogs.append(dialog)
-    dialog.finished.connect(lambda _code: parent._side_diff_dialogs.remove(dialog))
+    # 只保留一个并排窗口；WA_DeleteOnClose 释放 Qt 文档与高亮资源。
+    parent._side_diff_dialog = dialog
+    dialog.finished.connect(lambda _code: setattr(parent, "_side_diff_dialog", None))
     return dialog

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QLabel, QListWidget,
 
 from diff_hunks import parse_hunks, patch_for_hunks
 from ui_qt.widgets import DiffView, confirm
+from PySide6.QtWidgets import QMessageBox
 
 
 class HunkDialog(QDialog):
@@ -58,10 +59,15 @@ class HunkDialog(QDialog):
 
 def stage_hunks(parent, app, repo, path: str, diff: str) -> bool:
     if not parse_hunks(diff):
+        QMessageBox.information(parent, "逐块暂存", "该文件没有可逐块选择的差异。")
         return False
     dialog = HunkDialog(parent, app, repo, path, diff)
     if dialog.exec() != QDialog.DialogCode.Accepted:
         return False
-    patch = dialog.selected_patch()
+    try:
+        patch = dialog.selected_patch()
+    except ValueError:
+        QMessageBox.information(parent, "逐块暂存", "请至少选择一个差异块。")
+        return False
     app.write("逐块暂存", lambda r: r.apply_patch_cached(patch))
     return True
